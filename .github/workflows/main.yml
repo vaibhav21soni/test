@@ -3,38 +3,33 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main  # Trigger on push to main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Setup SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H 3.82.224.123 >> ~/.ssh/known_hosts
-      shell: bash
-
-    - name: SSH into EC2, clone repo, and copy files
-      run: |
-        ssh -i ~/.ssh/id_rsa ubuntu@3.82.224.123 << 'EOF'
-          set -e  # Exit on error
-
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: 3.82.224.123
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          set -e
+          
           REPO_URL="https://github.com/vaibhav21soni/test.git"
           REPO_DIR="/home/ubuntu/myrepo"
           WEB_DIR="/var/www/html"
 
-          # Update packages and install git + nginx
           sudo apt update -y
           sudo apt install -y git nginx
 
-          # Clone or pull repo
           if [ -d "$REPO_DIR/.git" ]; then
             echo "Repo exists, pulling latest changes..."
             cd "$REPO_DIR"
@@ -45,10 +40,7 @@ jobs:
             git clone "$REPO_URL" "$REPO_DIR"
           fi
 
-          # Copy files to web root
           sudo rm -rf "$WEB_DIR"/*
           sudo cp -r "$REPO_DIR"/* "$WEB_DIR"
 
           echo "Deployment complete."
-        EOF
-      shell: bash

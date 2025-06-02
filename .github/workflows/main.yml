@@ -1,0 +1,42 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo 
+      uses: actions/checkout@v3
+
+    - name: Setup SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 3.82.224.123 >> ~/.ssh/known_hosts
+      shell: bash
+
+    - name: Clone repo on EC2 and copy files
+      run: |
+        ssh -i ~/.ssh/id_rsa ubuntu@3.82.224.123 << 'EOF'
+          
+          sudo mkdir -p ~/myrepo
+          sudo cd ~/myrepo
+          sudo apt install nginx -y
+
+          # If repo already cloned, pull latest changes; otherwise clone
+          if [ -d .git ]; then
+            git pull
+          else
+            git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git .
+          fi
+
+          # Example: Copy files somewhere else
+         sudo cp -r ~/myrepo/* /var/www/html
+        EOF
+      shell: bash

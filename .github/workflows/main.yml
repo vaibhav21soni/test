@@ -3,36 +3,33 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main 
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Execute remote SSH commands using SSH key
-      uses: appleboy/ssh-action@v1
+    - name: Deploy to EC2 via SSH
+      uses: appleboy/ssh-action@v1.0.0
       with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.EC2_SSH_KEY}}
-        port: ${{ secrets.PORT }}
-
-    - name: SSH into EC2, clone repo, and copy files
-      run: |
-        ssh -i ~/.ssh/id_rsa ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
-          set -e  # Exit on error
-
+        host: 3.82.224.123
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          set -e
+          
           REPO_URL="https://github.com/vaibhav21soni/test.git"
           REPO_DIR="/home/ubuntu/myrepo"
           WEB_DIR="/var/www/html"
 
           sudo apt update -y
           sudo apt install -y git nginx
-          
+
           if [ -d "$REPO_DIR/.git" ]; then
             echo "Repo exists, pulling latest changes..."
             cd "$REPO_DIR"
@@ -42,10 +39,8 @@ jobs:
             rm -rf "$REPO_DIR"
             git clone "$REPO_URL" "$REPO_DIR"
           fi
-          
+
           sudo rm -rf "$WEB_DIR"/*
           sudo cp -r "$REPO_DIR"/* "$WEB_DIR"
 
           echo "Deployment complete."
-        EOF
-      shell: bash

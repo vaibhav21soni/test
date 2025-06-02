@@ -3,14 +3,14 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main  
+      - main  # Trigger on push to main branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo 
+    - name: Checkout repo
       uses: actions/checkout@v3
 
     - name: Setup SSH key
@@ -18,25 +18,37 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-         ssh-keyscan -H 3.82.224.123 >> ~/.ssh/known_hosts
+        ssh-keyscan -H 3.82.224.123 >> ~/.ssh/known_hosts
       shell: bash
 
-    - name: Clone repo on EC2 and copy files
+    - name: SSH into EC2, clone repo, and copy files
       run: |
         ssh -i ~/.ssh/id_rsa ubuntu@3.82.224.123 << 'EOF'
-          
-          sudo mkdir -p ~/myrepo
-          sudo cd ~/myrepo
-          sudo apt install nginx -y
+          set -e  # Exit on error
 
-          # If repo already cloned, pull latest changes; otherwise clone
-          if [ -d .git ]; then
+          REPO_URL="https://github.com/vaibhav21soni/test.git"
+          REPO_DIR="/home/ubuntu/myrepo"
+          WEB_DIR="/var/www/html"
+
+          # Update packages and install git + nginx
+          sudo apt update -y
+          sudo apt install -y git nginx
+
+          # Clone or pull repo
+          if [ -d "$REPO_DIR/.git" ]; then
+            echo "Repo exists, pulling latest changes..."
+            cd "$REPO_DIR"
             git pull
           else
-            git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git .
+            echo "Cloning fresh repo..."
+            rm -rf "$REPO_DIR"
+            git clone "$REPO_URL" "$REPO_DIR"
           fi
 
-          # Example: Copy files somewhere else
-         sudo cp -r ~/myrepo/* /var/www/html
+          # Copy files to web root
+          sudo rm -rf "$WEB_DIR"/*
+          sudo cp -r "$REPO_DIR"/* "$WEB_DIR"
+
+          echo "Deployment complete."
         EOF
       shell: bash

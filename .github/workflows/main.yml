@@ -13,17 +13,17 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
 
-    - name: Setup SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H 3.82.224.123 >> ~/.ssh/known_hosts
-      shell: bash
+    - name: Execute remote SSH commands using SSH key
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY}}
+        port: ${{ secrets.PORT }}
 
     - name: SSH into EC2, clone repo, and copy files
       run: |
-        ssh -i ~/.ssh/id_rsa ubuntu@3.82.224.123 << 'EOF'
+        ssh -i ~/.ssh/id_rsa ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'EOF'
           set -e  # Exit on error
 
           REPO_URL="https://github.com/vaibhav21soni/test.git"
